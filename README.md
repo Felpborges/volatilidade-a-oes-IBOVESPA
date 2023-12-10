@@ -16,10 +16,7 @@ O repositório está estruturado da seguinte forma:
 
 - Na pasta `base dados` estão os dados utilizados no projeto. O arquivo `IBOVDia_04-12-23.csv` é o dataset utilizado. 
 - Na pasta `imagens` estão as imagens utilizadas neste README.
-- Na pasta `R Markdown` estão os notebooks com o desenvolvimento do projeto. Em detalhes, temos:
-  - [`projeto_previsao_series_temporais.ipynb`](file:///C:/Users/feborges/OneDrive/%C3%81rea%20de%20Trabalho/R/R%20Markdown/projeto_volatilidade_IBOVESPA.html): projeto completo
- 
- 
+- Na pasta `R Markdown` estão os notebooks com o desenvolvimento do projeto. 
  
 
 # Calculando a Volatilidade das ações do IBOVESPA
@@ -46,6 +43,8 @@ O objetivo principal deste projeto é calcular a volatilidade instantanea, mas t
 Além de fornecer insights sobre o cálculo da volatilidade ao enfatizar a diferença do cálculo de volatilidade "comum" e o calculado pelo GARCH, podemos observar como a volatilidade passada afeta a volatilidade atual. Ao fazer essa leitura e entender esse comportamento, podemos aplicar esse insights no cálculo de risco de um portfólio, bem como eventualmente prevermos a volatilade de períodos a frente.
 
 
+
+
 ## Visão Geral do Projeto
 
 ### 1- Importação de Dados
@@ -59,7 +58,7 @@ Conduzi uma EDA abrangente para investigar as características fundamentais dos 
 ### 3- Pré-processamento de Dados
 Nesta fase, preparei os dados para a modelagem. Garanti que as séries temporais estejam em um formato adequado para análise subsequente.
 
-### 4- Construção do Modelo SARIMA
+### 4- Construção do Modelo GARCH
 Aqui, defini os parâmetros para o modelo GARCH. Esta escolha é foi feita com base nos resultados obtidos nos dados do log_return do IBOVESPA.
 
 ### 5- Avaliação do Modelo
