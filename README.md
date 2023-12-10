@@ -8,16 +8,16 @@
 O repositório está estruturado da seguinte forma:
 
 ```
-├── dados
-├── images
-├── notebooks
+├── base dados
+├── imagens
+├── R Markdown
 
 ```
 
 - Na pasta `base dados` estão os dados utilizados no projeto. O arquivo `IBOVDia_04-12-23.csv` é o dataset utilizado. 
 - Na pasta `imagens` estão as imagens utilizadas neste README.
 - Na pasta `R Markdown` estão os notebooks com o desenvolvimento do projeto. Em detalhes, temos:
-  - [`projeto_previsao_series_temporais.ipynb`](R Markdown/projeto_volatilidade_IBOVESPA.Rmd): projeto completo
+  - [`projeto_previsao_series_temporais.ipynb`](file:///C:/Users/feborges/OneDrive/%C3%81rea%20de%20Trabalho/R/R%20Markdown/projeto_volatilidade_IBOVESPA.html): projeto completo
  
  
  
@@ -27,7 +27,7 @@ O repositório está estruturado da seguinte forma:
 Este repositório documenta um projeto detalhado de análise de heterocedasticidade condicional, onde foi aplicado o modelo GARCH (Generalized Autoregressive Conditional Heteroskedasticity) para modelar esses clusters de volatilidade que as ações do IBOVESPA apresentam. O foco foi calcular a volatilidade instantanea de cada ação, e analisar pressupostos importantes dos resíduos, como estacionariedade, ausência de autocorrelações na série, bem como no quadrado da série e também a normalidade. Para a normalidade, foi utilizado testes formais de Jarque-Bera e Shapiro-Wilk, bem como análises visuais. Outra análise importante foi sobre a influencia da volatilidade passada ma volatilidade atual, analisando o beta1 do modelo GARCH.
 Os parametros do modelo GARCH foram ajustados para os dados do log_return do IBOVESPA. Esses mesmos parâmetros se mantiveram para todas as ações, o GARCH(1,1). 
 
-![log_return_IBOVESPA](Images/log_return_ibov.png)
+![log_return_IBOVESPA](Imagens/log_return_ibov.png)
 
 
 
@@ -44,10 +44,6 @@ O objetivo principal deste projeto é calcular a volatilidade instantanea, mas t
 
 ## Relevância e Aplicabilidade 
 Além de fornecer insights sobre o cálculo da volatilidade ao enfatizar a diferença do cálculo de volatilidade "comum" e o calculado pelo GARCH, podemos observar como a volatilidade passada afeta a volatilidade atual. Ao fazer essa leitura e entender esse comportamento, podemos aplicar esse insights no cálculo de risco de um portfólio, bem como eventualmente prevermos a volatilade de períodos a frente.
-
-
-### Gráfico do coeficiente beta1 de cada ação do IBOVESPA
-![coef_beta1_garch](Images/beta_acoes.png)
 
 
 ## Visão Geral do Projeto
@@ -69,17 +65,17 @@ Aqui, defini os parâmetros para o modelo GARCH. Esta escolha é foi feita com b
 ### 5- Avaliação do Modelo
 Foi avaliado o desempenho do modelo GARCH analisando os resíduos produzidos após o modelo. Fora feitos testes formais, como o Ljung-Box para autocorrelação, Jarque-Bera e Shapiro-Wilk para normalidade, Teste de Significância dos Coeficientes, bem como análises visuais.
 
-![residuos_log_retur_Ibov](Images/analise_residuos_ibov.png)
+![residuos_log_retur_Ibov](Imagens/analise_residuos_ibov.png)
 
 ### 6- Visualização dos cálculos
 Foi apresentado o cálculo de vol e os coeficientes de cada ação.
 
-![volatilidade](Images/tibble_vols.png)
+![volatilidade](Imagens/tibble_vols.png)
 
 
 ### 7- Conclusões   
 Finalizamos com uma análise dos parâmetros beta de todas as ações analisadas, e com isso pudemos identidicar alguns papéis que geraram beta1 muito baixo, mostrando a necessidade de análise individial de cada caso. Beta1 < 0.5 é um possível problema ao rodar o modelo. Aqui entendemos o comportamento padrão e deixamos como pontos de melhoria futura, uma nova modelagem, específica para essas poucas ações, bem como realizar previsões de volatilidade para os papéis.
 
-![beta1_papeis](Images/beta_acoes.png)
+![beta1_papeis](Imagens/beta_acoes.png)
 
 
