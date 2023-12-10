@@ -1,0 +1,333 @@
+---
+title: "Calculando Voltatilidade Ações"
+author: "Felipe Borges"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## **Cálculo de Volatilidade Condicional das Ações que Compõem o IBOVESPA**
+
+Este projeto foca na aplicação de métodos estatísticos avançados para modelar a heterocedasticidade condicional apresentada nas ações da B3 (Bolsa de Valores do Brasil). Será utilizado uma abordagem de séries temporais, focada na execução do modelo GARCH ("Generalized Autoregressive Conditional Heteroskedasticity"). O modelo GARCH é bem adequado para dados de séries temporais que exibem heterocedasticidade condicional, ou o o que chamamos de clusters de volatilidade.
+
+### Estrutura do Projeto
+
+**Análise da série temporal do log_return do IBOVESPA**\
+- Visualização dos dados\
+- Análise de Autocorrelação / Autocorrelação Parcial\
+- Análise de Autocorrelação / Autocorrelação Parcial do quadrado da série
+
+**Aplicação do modelo GARCH**\
+-Aplicando o modelo GARCH no log_return do IBOVESPA
+
+**Análise dos resíduos**\
+- Testes formais\
+- Visualização
+
+**Aplicando GARCH aos log_return das ações do IBOVESPA**\
+- Importando csv com composição do IBOVESPA\
+- Puxando a série temporal dos preços de negociação de cada ação\
+- Transformando em log_return\
+- Aplicando GARCH para calcular a volatilidade instantânea de cada papel\
+- Comparação da volatilidade calculada pelo GARCH (Vol_instant) e pela maneira tradicional (Vol_amostral)
+
+### Importações
+
+Nesta seção, importamos todas as bibliotecas necessárias para a análise de dados e modelagem estatística:
+
+`fGarch` `(do pacote Rmetrics)`: Utilizada para modelagem avançada de séries temporais financeiras. Implementa modelos GARCH (Generalized Autoregressive Conditional Heteroskedasticity), essenciais para analisar e prever volatilidade em dados financeiros.
+
+`xts` `(eXtensible Time Series)`: Fornece uma estrutura de dados robusta para séries temporais e financeiras, permitindo manipulação eficiente, subconjunto e alinhamento temporal. Ideal para lidar com dados cronológicos complexos.
+
+`quantmod` `(Quantitative Financial Modelling Framework)`: Oferece ferramentas para modelagem financeira quantitativa. Facilita a coleta de dados financeiros, visualização de séries temporais e análise técnica, sendo útil para testar estratégias de negociação.
+
+`purrr`: Aprimora a programação funcional no R, fornecendo funções para mapear e iterar operações de forma mais elegante e eficiente, ideal para manipular listas e expressões funcionais.
+
+`readr`: Facilita a leitura de dados retangulares como CSV, TSV, e FWF. Projetado para leitura rápida e eficiente de grandes conjuntos de dados, transformando textos em data frames de forma amigável.
+
+`stringr`: Especializado em manipulação de strings, oferece funções consistentes para operações como detecção, extração, substituição e manipulação de texto, essencial para o processamento eficiente de dados textuais.
+
+`dplyr`: Proporciona um conjunto de funções intuitivas para manipulação de dados, como filtragem, seleção e agrupamento. É uma ferramenta poderosa para a transformação e sumarização de data frames.
+
+`ggplot2`: Baseado na gramática de gráficos, permite a criação declarativa de gráficos complexos e esteticamente agradáveis. Facilita a construção de visualizações de dados personalizadas e informativas.
+
+`forcats`: Dedicado à manipulação de fatores, facilita a reordenação, renomeação e modificação de categorias estatísticas. Útil para ajustar e analisar dados categóricos em análises estatísticas.
+
+### Importando as bibliotecas usadas no projeto
+
+```{r message=FALSE, warning=FALSE}
+library(fGarch)  
+library(xts)
+library(quantmod) 
+library(purrr)   
+library(readr) 
+library(stringr) 
+library(dplyr) 
+library(ggplot2) 
+library(forcats)
+```
+
+### Importando e Visualizando o log_return do IBOVESPA
+
+```{r echo=TRUE, warning=FALSE}
+#Importando os dados do IBOVESPA
+bvsp <- getSymbols('^BVSP',
+                   auto.assign = FALSE,
+                   from = "2016-01-01", to = '2023-12-01') 
+bvsp_ad <- Ad(bvsp)
+
+# Calcular os retornos logarítmicos e tirando os valores vazios
+bvsp_lr <- na.omit(diff(log(bvsp_ad))) 
+
+#Plotando o log return do Ibov
+plot(bvsp_lr,col="blue")
+
+```
+
+```{r}
+# Executando o teste de Ljung-Box com diferentes lags
+resultados_ljung_box <- list(
+  lag10 = Box.test(bvsp_lr, lag = 10, type = "Ljung-Box"),
+  lag15 = Box.test(bvsp_lr, lag = 15, type = "Ljung-Box"),
+  lag20 = Box.test(bvsp_lr, lag = 20, type = "Ljung-Box")
+)
+
+# Imprimindo os resultados
+resultados_ljung_box
+```
+
+#### Comentários:
+
+Os resultados sugerem que há autocorrelação significativa nos dados de bvsp_lr para os lags testados.
+
+### Analise Visual Autocorrelação e Autocorrelação Parcial da série
+
+```{r echo=TRUE, warning=FALSE}
+#Plotando a série e análises
+par(mfrow=c(2,2))
+plot(bvsp_lr)
+qqnorm(bvsp_lr)
+qqline(bvsp_lr)
+acf(bvsp_lr)
+pacf(bvsp_lr)
+```
+
+#### Comentários:
+
+Apesar do teste de Ljung-Box ter rejeitado a hipótese nula de não autocorrelação, na análise visual vemos que essa autocorrelação nos lags analisados é muito baixa. Continuaremos a análise considerando a média 0. Porém vale ressaltar, que muitas vezes encontramos séries que não possuem autocorrelação significante, mas possuem autocorrelações no quadrado da série.
+
+### Analise Visual Autocorrelação e Autocorrelação Parcial da série
+
+```{r echo=TRUE, warning=FALSE}
+#Analisando o quadrado da série, para encontrar estrutura de autocorrelação
+par(mfrow=c(1,2))
+bvsp_lr2 <- bvsp_lr**2
+acf(bvsp_lr2)
+pacf(bvsp_lr2)
+```
+
+#### Comentários:
+
+Aqui vemos claramente que há autocorrelação e autocorrelação parcial quando analisamos o quadrado da série. Portanto, o uso do modelo GARCH é adequado para essa série de dados.
+
+### Rodando um GARCH(1,1)
+
+```{r}
+model <- garchFit(~garch(1,1), data = bvsp_lr, trace=FALSE)
+summary(model)
+```
+
+#### Comentários:
+
+Quando rodamos o summary do model, temos algumas informações importantes:
+
+**Conditional Distribution** : se refere à escolha da distribuição normal para modelar os erros no modelo GARCH e tem - implicações diretas no processo de estimação por máxima verossimilhança dos parâmetros do modelo. É importante notar que essa é uma suposição modelística e deve ser validada ou reconsiderada com base nas características dos dados em análise. Aqui, seguiremos com a dist norm.
+
+**Coefficient(s)**: Temos os coeficientes do modelo. Lembrando que o foco é apenas na volatilidade, e neste caso, consideraremos a média (mu)=0.
+
+**Error Analysis**: Aqui vemos que todos os coeficientes tem significancia estatística, mesmo o ômega sendo um valor pequeno.\
+omega = 0.001043%\
+alpha1 = 8.792%\
+beta1 = 86.15%
+
+**Standardised Residuals Tests**: Aqui temos o resultado de alguns testes estatísticos.\
+Teste Jarque-Bera -\> Uma estatística de teste alta e um valor-p próximo de zero, indicam uma forte evidência contra a hipótese nula de normalidade.
+
+Teste Shapiro-Wilk -\> O p-valor muito pequeno indica tambem uma rejeição da hipótese nula de normalidade. Embora a estatística do teste Shapiro-Wilk seja 0.9800542. próximo de 1, indicando uma tendência à normalidade, a decisão sobre rejeitar ou não a hipótese nula é baseada principalmente no valor-p.
+
+Teste Ljung-Box -\> A hipótese nula do teste de Ljung-Box é que os dados são independentes, ou seja, não há autocorrelação.
+
+### Análise Visual dos Resíduos Padronizados, Autocorrelação e Normalidade
+
+```{r echo=TRUE, warning=FALSE}
+par(mfrow = c(2, 2))
+plot(residuals(model, standardize =TRUE),
+     type = 'l', col='blue',
+     main= 'Residuos padronizados', ylab='')
+
+
+qqnorm(residuals(model, standardize  = TRUE))
+qqline(residuals(model, standardize  = TRUE))
+
+acf(residuals(model, standardize  = TRUE))
+pacf(residuals(model, standardize  = TRUE))
+```
+
+#### Comentários:
+
+Vemos nos gráficos acima, que os resíduos padronizados seguem uma estacionariedade, com exceção de alguns pontos outliers. Esses pontos outliers podem ser removidos ou serem flagados com uma variável dummy, mas neste caso, optaremos por deixa-los, uma vez que não tem impacto significativo.
+
+O QQ-Plot mostra que apesar dos testes de normalidade terem rejeitado a hipótese nula de normalidade, os dados seguem aproximadamente uma distribuição normal. O teste de Jarque-Bera especificamente tende a rejeitar a normalidade pois ele leva em consideração a curtose e assimetria, que são fortemente afetados por esses valores extremos.
+
+Por fim, vemos que não há autocorrelações significativas, corroborando os testes de Ljung-Box.
+
+## Aplicando o GARCH para todas as ações que compõe o IBOVESPA
+
+Download do csv com a composição do IBOVESPA:[composição_ibovespa](https://www.b3.com.br/pt_br/market-data-e-indices/indices/indices-amplos/indice-ibovespa-ibovespa-composicao-da-carteira.htm)
+
+### Importando dados
+
+```{r message=FALSE, warning=FALSE}
+# Lendo o arquivo CSV 
+symbols <- read_delim("C:/Users/feborges/OneDrive/Área de Trabalho/R/base dados/IBOVDia_04-12-23.csv",
+                      skip = 1, #Aqui pulamos a primeira linha do arquivo
+                      delim = ";", #Separador dos dados
+                      locale = locale(encoding = "latin1"))
+
+
+symbols_filtered <- symbols %>%
+  filter(!is.na(Ação)) %>%    #Filtra as linhas onde a coluna Ação não é NA
+  pull(Código) %>%     #Extrai os valores da coluna Código
+  paste0(".SA")    #Adiciona o .SA, necessário para utilizar o getSymbols
+
+series <- map(symbols_filtered, function(x) {          #  Cria uma nova variável para armazenar os resultados do processamento.
+  x <- getSymbols(x,                                   #obtem os dados financeiros da ação especificada em x
+                  auto.assign = FALSE, 
+                  from = "2020-12-04",
+                  to = "2023-12-04"
+                  )
+   return(Ad(x))                                       #Retorna os preços ajustados para cada ação
+
+})
+
+series <- set_names(series, symbols_filtered) # Redefinindo os nomes com symbols_filtered
+```
+
+### Rodando o Modelo para os papéis do IBOVESPA
+
+```{r message=FALSE, warning=FALSE}
+# Rodando o modelo GARCH para todos os papéis 
+models <- map(symbols_filtered, function(x) {  
+  data <- series[[x]]    #Extrai a série temporal de preços para cada x da lista series
+  l_r <- na.omit(diff((log(data))))  #Calcula o retorno logaritmico
+  garchFit(data = l_r, trace=FALSE)   #Ajusta o GARCH para cada série
+  
+})
+
+#Salvando cada modelo ajustado com os símbolos correspondentes em symbols_filtered
+models <- set_names(models, symbols_filtered) 
+
+
+
+# Definindo uma variavel para os parametros
+params <- map_dfr(symbols_filtered, function(x) { # Combina os resultados em um único dataframe
+  mod <- models[[x]]   # Extrai o modelo GARCH ajustado para cada ação da lista models 
+  params <- coef(mod) # Extrai os parametros do modelo GARCH
+  sample_vol = as.numeric(sqrt(var(mod@data, na.rm = FALSE)*252)) # Calcula a volatilidade da amostra anualizada
+  instant_vol = sum(params[-1] * c(1, tail(mod@data,1)^2, tail(mod@h.t,1))) *252 #Calcula a vol instantanea
+  tibble(    # Fazendo um tibble para exibir os dados
+    Ticker = x,   #Nome da ação
+    dias = length(mod@data),    #Quantidade de dias que temos disponível de cada ação
+    omega = params['omega'],    
+    alpha1 = params['alpha1'],
+    beta1 = params['beta1'],
+    Estac = alpha1 + beta1 < 1, # se isso não for TRUE, o processo de volatilidade não é estacionario
+    Vol_instant = 100* sqrt(instant_vol) ,
+    Vol_amostral = 100* sample_vol
+  )
+})
+```
+
+### Visualizando o resultado
+
+```{r}
+# Exibindo o tibble
+params
+```
+
+#### Comentários:
+
+**Ticker**: nome da ação
+
+**dias**: dias de dados de pregão disponíveis de cada ação. Séries com poucos registros costumam dar problemas no GARCH
+
+**Estac**: confere se a soma do alpha1 e do beta1 são \< 1,justamente para que o processo de volatilidade seja estacionário. Se for \> 1, o processo de volatilidade não é estacionário.
+
+#### **Análise da Volatilidade: Volatilidade Instantânea vs. Volatilidade da Amostra**
+
+1.  Definições e Cálculos:
+
+**Volatilidade Instantânea (Vol_instant)**: Esta medida é derivada do modelo GARCH(1,1) e reflete a volatilidade prevista para o período atual. Ela é influenciada pelos dois componentes principais do modelo: $$
+h_t = \omega + \alpha \epsilon_{t-1}^2 + \beta h_{t-1}
+$$ **Volatilidade da Amostra (Vol_amostral)**: Esta é uma medida histórica calculada como o desvio padrão anualizado dos retornos do ativo. Representa a volatilidade geral do ativo durante o período da amostra, fornecendo uma visão de longo prazo da variação dos retornos. $$
+\text{Variância} = \frac{1}{n-1} \sum (\text{Retornos logarítmicos} - \text{Média dos retornos logarítmicos})^2
+$$
+
+$$
+\text{Desvio padrão} = \sqrt{\text{Variância}}
+$$
+
+$$
+\text{Volatilidade da amostra} (\text{sample_vol}) = \text{Desvio padrão} \times \sqrt{252}
+$$
+
+2.  Interpretação dos Resultados: Nas análises realizadas, observou-se que o coeficiente β1 (beta um) é o maior em todos os papéis analisados. Isso implica que a volatilidade passada é um indicador significativo e eficaz para a previsão da volatilidade futura. Um valor alto de β1 sugere que a volatilidade tende a ser autocorrelacionada e persistente.
+
+3.  Implicações Práticas: A memória "curta" do modelo, devido à presença de um único lag de volatilidade, torna a Volatilidade Instantânea uma ferramenta valiosa para captar mudanças rápidas no mercado. Isso é particularmente útil em contextos de negociação e gerenciamento de risco, onde a identificação rápida de aumentos ou diminuições na volatilidade pode ser crucial para a tomada de decisões estratégicas.
+
+Em contraste, a Volatilidade da Amostra oferece uma perspectiva mais estável e de longo prazo, em que períodos de alta volatilidade afetam a série por mais tempo.
+
+### Filtrando papéis que que tiveram alpha1 + beta1 \> 1
+
+```{r}
+params %>% filter(!Estac)
+#Isso pode ocorrer por algum outlier na série, através de algum retorno anômalo do papel
+```
+
+```{r}
+par(mfrow=c(1,1))
+plot(series[["BRAP4.SA"]], main="BRAP4")
+
+plot(series[["HAPV3.SA"]], main="HAPV3")
+```
+
+#### Comentários:
+
+Essas séries possuem uma soma do alpha1 e beta1 maiores do que 1, isso indica que o processo de volatilidade não é estacionário Isso pode ocorrer por algum outlier na série, através de algum retorno anômalo do papel. Nesses casos, poderiamos averiguar mais a fundo, se saiu algum fato relavante sobre as duas ações, ou se realmente essa é a caracteristica da série sendo necessário então, alterar os parametros do modelo GARCH, por exemplo, a distribuição que o modelo utiliza para o calculo de maxima verossimilhança
+
+### Plotando o valor beta1 de todos os papéis
+
+```{r}
+# Esse gráfico mostra o beta1 de todas as ações analisadas
+ggplot(params, aes(y = fct_reorder(Ticker, beta1), x = beta1)) +
+  geom_point() +
+  labs(y = "Symbols", x = "Beta1 Value") +
+  theme_light() # Adicionando um tema para melhorar a estética
+```
+
+#### Comentários:
+
+Outro problema que acontece quando rodamos GARCH para muitos papéis é que alguns deles ficam com beta1 muito baixo, neste caso, é necessário analisar mais de perto e testar parametros diferentes. Quando vemos beta1 \< 0.5 provavelmente é alguma inconsistencia ao rodar o GARCH, já quando temos um beta muito proximo a 1, não necessariamente deu problema com o GARCH, as vezes somente a série não é estacionaria.
+
+### Sugestões para aprimoramento do projeto
+
+```{r}
+params %>% filter(beta1< 0.5)
+```
+
+1- Estudar essas séries separadamente, e encontrar parametros do modelo GARCH que consigam captar a volatilidade de maneira correta.
+
+2- Realizar previsões de volatilidade para os papéis analisados.
