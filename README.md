@@ -16,8 +16,9 @@ O repositório está estruturado da seguinte forma:
 
 - Na pasta `base dados` estão os dados utilizados no projeto. O arquivo `IBOVDia_04-12-23.csv` é o dataset utilizado. 
 - Na pasta `imagens` estão as imagens utilizadas neste README.
-- Na pasta `R Markdown` estão os notebooks com o desenvolvimento do projeto. 
- 
+- Na pasta `R Markdown` estão os códigos com o desenvolvimento do projeto. Em detalhes, temos:
+  - [`projeto_completo_GARCH`](https://felpborges.github.io/volatilidade-a-oes-IBOVESPA/): R Markdown com o projeto completo
+
 
 # Calculando a Volatilidade das ações do IBOVESPA
 
